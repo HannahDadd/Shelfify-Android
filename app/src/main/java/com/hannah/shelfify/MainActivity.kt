@@ -1,0 +1,151 @@
+package hannah.bd.getitwrite
+
+import android.app.Activity
+import android.os.Build
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.annotation.RequiresApi
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
+import androidx.navigation.NavHostController
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import androidx.room.Room
+import hannah.bd.getitwrite.modals.AppDatabase
+import hannah.bd.getitwrite.theme.GetItWriteTheme
+import hannah.bd.getitwrite.views.badges.BadgePage
+import hannah.bd.getitwrite.views.games.GamesPage
+import hannah.bd.getitwrite.views.games.editing.EditingQuestion
+import hannah.bd.getitwrite.views.games.prompt.ExpandedPrompt
+import hannah.bd.getitwrite.views.games.vocab.VocabGame
+import hannah.bd.getitwrite.views.pages.HomepagePage
+import hannah.bd.getitwrite.views.pages.StatsPage
+import hannah.bd.getitwrite.views.sprints.SprintStack
+import hannah.bd.getitwrite.views.streak.ExtendStreak
+
+class MainActivity : ComponentActivity() {
+    var db: AppDatabase? = null
+
+    @ExperimentalFoundationApi
+    @RequiresApi(Build.VERSION_CODES.O)
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        setContent {
+            val navController = rememberNavController()
+            GetItWriteTheme {
+                Surface(tonalElevation = 5.dp) {
+                    MainPage(this, navController)
+                }
+            }
+        }
+    }
+
+    @ExperimentalFoundationApi
+    @RequiresApi(Build.VERSION_CODES.O)
+    @Composable
+    fun MainPage(activity: Activity, navController: NavHostController) {
+        db = Room.databaseBuilder(
+            applicationContext,
+            AppDatabase::class.java, "database-name"
+        ).allowMainThreadQueries().build()
+
+        Scaffold(
+            bottomBar = {
+                NavigationBar {
+                    val currentDestination = navController.currentDestination?.route
+                    NavigationBarItem(
+                        selected = currentDestination == "home",
+                        onClick = { navController.navigate("home") },
+                        icon = { Icon(Icons.Default.Home, contentDescription = null) }
+                    )
+                    NavigationBarItem(
+                        selected = currentDestination == "stats",
+                        onClick = { navController.navigate("stats") },
+                        icon = {
+                            Icon(
+                                painter = painterResource(id = R.drawable.baricons),
+                                contentDescription = "Home",
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    )
+                    NavigationBarItem(
+                        selected = currentDestination == "badges",
+                        onClick = { navController.navigate("badges") },
+                        icon = {
+                            Icon(
+                                painter = painterResource(id = R.drawable.trophyicon),
+                                contentDescription = "Home",
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    )
+                    NavigationBarItem(
+                        selected = currentDestination == "games",
+                        onClick = { navController.navigate("games") },
+                        icon = {
+                            Icon(
+                                painter = painterResource(id = R.drawable.gameicon),
+                                contentDescription = "Home",
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+                    )
+                }
+            }
+        ) { innerPadding ->
+            NavHost(
+                navController = navController,
+                startDestination = "home",
+                modifier = Modifier.padding(innerPadding)
+            ) {
+                composable("home") { HomepagePage(activity, navController) }
+                composable("stats") { StatsPage(db) }
+                composable("badges") { BadgePage() }
+                composable("games") { GamesPage(navController) }
+                composable("sprint20") {
+                    SprintStack(db, onFinish = { navController.popBackStack() }, 20)
+                }
+                composable("sprint40") {
+                    SprintStack(db, onFinish = { navController.popBackStack() }, 40)
+                }
+                composable("sprint60") {
+                    SprintStack(db, onFinish = { navController.popBackStack() }, 60)
+                }
+                composable("streak") {
+                    ExtendStreak(db, onDone = { navController.popBackStack() })
+                }
+                composable("vocabGame") {
+                    VocabGame(onDone = { navController.popBackStack() })
+                }
+                composable("editingGame") {
+                    EditingQuestion(back = { navController.popBackStack() })
+                }
+                composable(
+                    "expanded_prompt/{question}",
+                    arguments = listOf(navArgument("question") { type = NavType.StringType })
+                ) { backStackEntry ->
+                    val question = backStackEntry.arguments?.getString("question") ?: ""
+                    ExpandedPrompt(question = question)
+                }
+            }
+        }
+    }
+}
